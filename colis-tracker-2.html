@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Colis — Suivi entrepôt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF1F4;
+    --card:#FFFFFF;
+    --ink:#1B2430;
+    --muted:#6B7280;
+    --line:#D7DCE3;
+    --orange:#E8720C;
+    --orange-dark:#C6600A;
+    --green:#2F9E6E;
+    --red:#D93B3B;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; background:var(--bg); color:var(--ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; -webkit-font-smoothing:antialiased;}
+  .display{font-family:'Space Grotesk',sans-serif;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  header{
+    position:sticky; top:0; z-index:20;
+    background:var(--ink); color:#fff;
+    padding:18px 16px 14px;
+  }
+  header h1{
+    display:flex; align-items:baseline; gap:8px;
+    font-size:22px; font-weight:700; margin:0 0 12px;
+  }
+  header h1 .tag{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:400;
+    color:var(--orange); border:1px solid var(--orange); border-radius:3px;
+    padding:2px 6px; letter-spacing:.04em;
+  }
+  .search{
+    display:flex; align-items:center; gap:8px;
+    background:#2A3444; border-radius:10px; padding:10px 12px;
+  }
+  .search input{
+    flex:1; background:none; border:none; outline:none;
+    color:#fff; font-size:15px; font-family:inherit;
+  }
+  .search input::placeholder{color:#8994A5;}
+  .search svg{flex:none; opacity:.7;}
+
+  .tabs{
+    display:flex; gap:6px; padding:12px 16px 0; background:var(--bg);
+    position:sticky; top:88px; z-index:15;
+  }
+  .tab{
+    flex:1; text-align:center; padding:10px 8px; border-radius:8px 8px 0 0;
+    font-size:13px; font-weight:600; color:var(--muted); cursor:pointer;
+    border:1px solid transparent; border-bottom:none;
+  }
+  .tab.active{background:var(--card); color:var(--ink); border-color:var(--line);}
+  .tab .count{font-family:'IBM Plex Mono',monospace; font-weight:400; opacity:.6; margin-left:4px;}
+
+  main{padding:12px 16px 100px; max-width:640px; margin:0 auto;}
+
+  .empty{
+    text-align:center; padding:60px 20px; color:var(--muted);
+  }
+  .empty .big{font-size:40px; margin-bottom:8px;}
+  .empty p{margin:4px 0; font-size:14px;}
+
+  .ticket{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    margin-bottom:12px; overflow:hidden; position:relative;
+    animation:in .25s ease;
+  }
+  @keyframes in{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;}}
+  .ticket-top{
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:14px 16px 12px;
+  }
+  .ticket-num{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--muted);
+    letter-spacing:.05em;
+  }
+  .ticket-name{
+    font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:19px;
+    margin:2px 0 4px; line-height:1.2;
+  }
+  .ticket-desc{font-size:13px; color:var(--muted); line-height:1.4;}
+  .ticket-meta{font-size:12px; color:var(--muted); margin-top:6px;}
+
+  .perf{
+    height:0; border-top:1.5px dashed var(--line); position:relative; margin:0 16px;
+  }
+  .perf::before, .perf::after{
+    content:""; position:absolute; top:-8px; width:16px; height:16px;
+    background:var(--bg); border-radius:50%;
+  }
+  .perf::before{left:-24px;}
+  .perf::after{right:-24px;}
+
+  .ticket-bottom{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 16px 14px;
+  }
+  .badge{
+    font-size:11px; font-weight:600; padding:4px 9px; border-radius:20px;
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .badge.attente{background:#FDF0E4; color:var(--orange-dark);}
+  .badge.recupere{background:#E6F5EE; color:var(--green);}
+  .badge::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor;}
+
+  .btn{
+    border:none; border-radius:8px; padding:10px 16px; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:inherit;
+  }
+  .btn-primary{background:var(--orange); color:#fff;}
+  .btn-primary:active{background:var(--orange-dark);}
+  .btn-ghost{background:none; color:var(--muted); text-decoration:underline;}
+
+  .recup-info{font-size:12px; color:var(--muted); line-height:1.5;}
+  .recup-info b{color:var(--ink);}
+
+  .fab{
+    position:fixed; right:18px; bottom:22px; z-index:30;
+    width:58px; height:58px; border-radius:50%; background:var(--orange);
+    color:#fff; border:none; font-size:28px; box-shadow:0 6px 16px rgba(232,114,12,.4);
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .fab:active{background:var(--orange-dark);}
+
+  .sheet-overlay{
+    position:fixed; inset:0; background:rgba(20,24,32,.5); z-index:40;
+    display:flex; align-items:flex-end; opacity:0; pointer-events:none;
+    transition:opacity .2s ease;
+  }
+  .sheet-overlay.open{opacity:1; pointer-events:auto;}
+  .sheet{
+    background:var(--card); width:100%; border-radius:18px 18px 0 0;
+    padding:20px 18px calc(20px + env(safe-area-inset-bottom));
+    transform:translateY(100%); transition:transform .25s ease;
+    max-width:640px; margin:0 auto;
+  }
+  .sheet-overlay.open .sheet{transform:translateY(0);}
+  .sheet h2{font-family:'Space Grotesk',sans-serif; font-size:18px; margin:0 0 14px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:600;}
+  .field input, .field textarea{
+    width:100%; border:1px solid var(--line); border-radius:9px; padding:11px 12px;
+    font-size:15px; font-family:inherit; outline:none; background:#FAFBFC;
+  }
+  .field input:focus, .field textarea:focus{border-color:var(--orange);}
+  .field textarea{resize:none; min-height:56px;}
+  .sheet-actions{display:flex; gap:10px; margin-top:6px;}
+  .sheet-actions .btn{flex:1; padding:13px;}
+  .btn-secondary{background:#EEF1F4; color:var(--ink);}
+
+  .warn-box{
+    background:#FDEDED; border:1px solid #F5C6C6; color:#8A2626;
+    border-radius:9px; padding:10px 12px; font-size:12.5px; margin-bottom:14px; line-height:1.4;
+  }
+
+  .field-row{display:flex; gap:8px; align-items:stretch;}
+  .field-row input{flex:1;}
+  .scan-btn{
+    flex:none; width:46px; border:1px solid var(--line); border-radius:9px;
+    background:#FAFBFC; display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .scan-btn:active{background:#EEF1F4;}
+  .ticket-code{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink);
+    background:#F1F3F6; display:inline-block; padding:2px 7px; border-radius:5px;
+    margin-top:4px; letter-spacing:.02em;
+  }
+
+  .scanner-overlay{
+    position:fixed; inset:0; background:#000; z-index:60;
+    display:none; flex-direction:column;
+  }
+  .scanner-overlay.open{display:flex;}
+  .scanner-overlay video{flex:1; width:100%; object-fit:cover;}
+  .scanner-frame{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:78%; max-width:340px; height:120px; border:2px solid var(--orange);
+    border-radius:10px; box-shadow:0 0 0 2000px rgba(0,0,0,.35);
+  }
+  .scanner-hint{
+    position:absolute; top:calc(50% + 80px); left:0; right:0; text-align:center;
+    color:#fff; font-size:13px; opacity:.85;
+  }
+  .scanner-close{
+    position:absolute; top:calc(env(safe-area-inset-top) + 14px); right:16px;
+    width:38px; height:38px; border-radius:50%; background:rgba(255,255,255,.15);
+    color:#fff; border:none; font-size:20px; display:flex; align-items:center; justify-content:center;
+  }
+
+  .sig-wrap{
+    border:1px dashed var(--line); border-radius:9px; background:#FAFBFC;
+    position:relative; touch-action:none;
+  }
+  .sig-wrap canvas{display:block; width:100%; height:140px; border-radius:9px;}
+  .sig-placeholder{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:12.5px; pointer-events:none;
+  }
+  .sig-row{display:flex; justify-content:space-between; align-items:center; margin-top:6px;}
+  .sig-clear{background:none; border:none; color:var(--muted); font-size:12px; text-decoration:underline; padding:4px 0; cursor:pointer;}
+  .ticket-sig{margin-top:8px;}
+  .ticket-sig img{height:44px; border:1px solid var(--line); border-radius:6px; background:#fff;}
+
+  .toast{
+    position:fixed; left:50%; bottom:90px; transform:translateX(-50%) translateY(20px);
+    background:var(--ink); color:#fff; padding:10px 18px; border-radius:20px;
+    font-size:13px; opacity:0; transition:all .25s ease; z-index:50; pointer-events:none;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .load{text-align:center; padding:40px; color:var(--muted); font-size:13px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Colis <span class="tag">ENTREPÔT</span></h1>
+  <div class="search">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+    <input id="searchInput" type="text" placeholder="Chercher un nom…">
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="attente">En attente <span class="count" id="countAttente"></span></div>
+  <div class="tab" data-tab="historique">Historique <span class="count" id="countHisto"></span></div>
+</div>
+
+<main id="main">
+  <div class="load">Chargement…</div>
+</main>
+
+<button class="fab" id="fabAdd" title="Ajouter un colis">+</button>
+
+<div class="sheet-overlay" id="addOverlay">
+  <div class="sheet">
+    <h2>Nouveau colis</h2>
+    <div class="field">
+      <label>Nom du destinataire</label>
+      <input id="inputNom" type="text" placeholder="Ex : Karim B.">
+    </div>
+    <div class="field">
+      <label>Description (optionnel)</label>
+      <textarea id="inputDesc" placeholder="Ex : petit carton brun, 2 boîtes"></textarea>
+    </div>
+    <div class="field">
+      <label>Réceptionné par (optionnel)</label>
+      <input id="inputRecept" type="text" placeholder="Ton prénom">
+    </div>
+    <div class="field">
+      <label>Code de suivi / code-barre (optionnel)</label>
+      <div class="field-row">
+        <input id="inputCode" type="text" placeholder="Scanne ou saisis le code">
+        <button class="scan-btn" id="btnScan" type="button" title="Scanner le code-barre">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1B2430" stroke-width="1.8"><path d="M4 7V4h3M20 7V4h-3M4 17v3h3M20 17v3h-3M4 12h16"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-secondary" id="cancelAdd">Annuler</button>
+      <button class="btn btn-primary" id="confirmAdd">Ajouter le colis</button>
+    </div>
+  </div>
+</div>
+
+<div class="sheet-overlay" id="claimOverlay">
+  <div class="sheet">
+    <h2>Remettre le colis</h2>
+    <div id="claimWarn"></div>
+    <div class="field">
+      <label>Nom de la personne qui prend le colis</label>
+      <input id="inputClaimant" type="text" placeholder="Doit correspondre au destinataire">
+    </div>
+    <div class="field">
+      <label>Signature</label>
+      <div class="sig-wrap" id="sigWrap">
+        <canvas id="sigCanvas"></canvas>
+        <div class="sig-placeholder" id="sigPlaceholder">Signe ici avec le doigt</div>
+      </div>
+      <div class="sig-row">
+        <span></span>
+        <button class="sig-clear" id="sigClear" type="button">Effacer</button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-secondary" id="cancelClaim">Annuler</button>
+      <button class="btn btn-primary" id="confirmClaim">Confirmer la remise</button>
+    </div>
+  </div>
+</div>
+
+<div class="scanner-overlay" id="scannerOverlay">
+  <button class="scanner-close" id="scannerClose">✕</button>
+  <video id="scannerVideo" autoplay playsinline muted></video>
+  <div class="scanner-frame"></div>
+  <div class="scanner-hint" id="scannerHint">Vise le code-barre du colis</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'colis-list';
+let colisList = [];
+let currentTab = 'attente';
+let searchTerm = '';
+let claimTargetId = null;
+
+const mainEl = document.getElementById('main');
+const overlayAdd = document.getElementById('addOverlay');
+const overlayClaim = document.getElementById('claimOverlay');
+const toastEl = document.getElementById('toast');
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'), 2200);
+}
+
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + ' à ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+}
+
+async function loadData(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, true);
+    colisList = res ? JSON.parse(res.value) : [];
+  }catch(e){
+    colisList = [];
+  }
+  render();
+}
+
+async function saveData(){
+  try{
+    const res = await window.storage.set(STORAGE_KEY, JSON.stringify(colisList), true);
+    if(!res){ showToast("Erreur d'enregistrement — réessaie"); }
+  }catch(e){
+    showToast("Erreur d'enregistrement — réessaie");
+  }
+}
+
+function nextTicketNumber(){
+  const max = colisList.reduce((m,c)=>Math.max(m, c.num||0), 0);
+  return max + 1;
+}
+
+function normalize(str){
+  return (str||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+function render(){
+  document.getElementById('countAttente').textContent = colisList.filter(c=>c.statut==='attente').length || '';
+  document.getElementById('countHisto').textContent = colisList.filter(c=>c.statut==='recupere').length || '';
+
+  let items = colisList.filter(c => currentTab === 'attente' ? c.statut === 'attente' : c.statut === 'recupere');
+  if(searchTerm){
+    items = items.filter(c =>
+      normalize(c.destinataire).includes(normalize(searchTerm)) ||
+      normalize(c.trackingCode).includes(normalize(searchTerm))
+    );
+  }
+  items = items.slice().sort((a,b)=>{
+    const da = currentTab === 'attente' ? a.dateRecu : a.dateRecupere;
+    const db = currentTab === 'attente' ? b.dateRecu : b.dateRecupere;
+    return currentTab === 'attente' ? new Date(da)-new Date(db) : new Date(db)-new Date(da);
+  });
+
+  if(items.length === 0){
+    mainEl.innerHTML = `<div class="empty">
+      <div class="big">📦</div>
+      <p><b>${currentTab==='attente' ? "Aucun colis en attente" : "Aucun colis dans l'historique"}</b></p>
+      <p>${currentTab==='attente' ? "Appuie sur + pour enregistrer une arrivée." : "Les colis remis apparaîtront ici."}</p>
+    </div>`;
+    return;
+  }
+
+  mainEl.innerHTML = items.map(c => {
+    if(currentTab === 'attente'){
+      return `
+      <div class="ticket">
+        <div class="ticket-top">
+          <div>
+            <div class="ticket-num mono">TICKET #${String(c.num).padStart(3,'0')}</div>
+            <div class="ticket-name">${escapeHtml(c.destinataire)}</div>
+            ${c.description ? `<div class="ticket-desc">${escapeHtml(c.description)}</div>` : ''}
+            <div class="ticket-meta">Arrivé le ${fmtDate(c.dateRecu)}${c.recuPar ? ' · reçu par ' + escapeHtml(c.recuPar) : ''}</div>
+            ${c.trackingCode ? `<div class="ticket-code">${escapeHtml(c.trackingCode)}</div>` : ''}
+          </div>
+        </div>
+        <div class="perf"></div>
+        <div class="ticket-bottom">
+          <span class="badge attente">En attente</span>
+          <button class="btn btn-primary" onclick="openClaim('${c.id}')">Remettre</button>
+        </div>
+      </div>`;
+    } else {
+      return `
+      <div class="ticket">
+        <div class="ticket-top">
+          <div>
+            <div class="ticket-num mono">TICKET #${String(c.num).padStart(3,'0')}</div>
+            <div class="ticket-name">${escapeHtml(c.destinataire)}</div>
+            ${c.description ? `<div class="ticket-desc">${escapeHtml(c.description)}</div>` : ''}
+            ${c.trackingCode ? `<div class="ticket-code">${escapeHtml(c.trackingCode)}</div>` : ''}
+          </div>
+        </div>
+        <div class="perf"></div>
+        <div class="ticket-bottom" style="display:block;">
+          <span class="badge recupere">Remis</span>
+          <div class="recup-info" style="margin-top:8px;">
+            Pris par <b>${escapeHtml(c.recuperePar)}</b> le ${fmtDate(c.dateRecupere)}
+            ${normalize(c.recuperePar) !== normalize(c.destinataire) ? '<br><span style="color:var(--red); font-weight:600;">⚠ Nom différent du destinataire</span>' : ''}
+          </div>
+          ${c.signature ? `<div class="ticket-sig"><img src="${c.signature}" alt="Signature"></div>` : ''}
+        </div>
+      </div>`;
+    }
+  }).join('');
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    currentTab = tab.dataset.tab;
+    render();
+  });
+});
+
+document.getElementById('searchInput').addEventListener('input', (e)=>{
+  searchTerm = e.target.value;
+  render();
+});
+
+document.getElementById('fabAdd').addEventListener('click', ()=>{
+  document.getElementById('inputNom').value = '';
+  document.getElementById('inputDesc').value = '';
+  document.getElementById('inputRecept').value = '';
+  document.getElementById('inputCode').value = '';
+  overlayAdd.classList.add('open');
+  setTimeout(()=>document.getElementById('inputNom').focus(), 200);
+});
+document.getElementById('cancelAdd').addEventListener('click', ()=>overlayAdd.classList.remove('open'));
+overlayAdd.addEventListener('click', (e)=>{ if(e.target===overlayAdd) overlayAdd.classList.remove('open'); });
+
+document.getElementById('confirmAdd').addEventListener('click', async ()=>{
+  const nom = document.getElementById('inputNom').value.trim();
+  if(!nom){ showToast('Indique le nom du destinataire'); return; }
+  const newColis = {
+    id: 'c' + Date.now() + Math.random().toString(36).slice(2,7),
+    num: nextTicketNumber(),
+    destinataire: nom,
+    description: document.getElementById('inputDesc').value.trim(),
+    recuPar: document.getElementById('inputRecept').value.trim(),
+    trackingCode: document.getElementById('inputCode').value.trim(),
+    dateRecu: new Date().toISOString(),
+    statut: 'attente',
+    recuperePar: null,
+    dateRecupere: null
+  };
+  colisList.push(newColis);
+  overlayAdd.classList.remove('open');
+  render();
+  await saveData();
+  showToast('Colis enregistré — ticket #' + String(newColis.num).padStart(3,'0'));
+});
+
+window.openClaim = function(id){
+  claimTargetId = id;
+  const c = colisList.find(x=>x.id===id);
+  document.getElementById('inputClaimant').value = '';
+  document.getElementById('claimWarn').innerHTML = `<div class="warn-box">Ce colis est enregistré au nom de <b>${escapeHtml(c.destinataire)}</b>. Vérifie l'identité avant de le remettre.</div>`;
+  overlayClaim.classList.add('open');
+  setTimeout(()=>{ document.getElementById('inputClaimant').focus(); setupSignaturePad(); }, 200);
+};
+document.getElementById('cancelClaim').addEventListener('click', ()=>overlayClaim.classList.remove('open'));
+overlayClaim.addEventListener('click', (e)=>{ if(e.target===overlayClaim) overlayClaim.classList.remove('open'); });
+
+// --- Pad de signature ---
+let sigCtx = null;
+let sigDrawing = false;
+let sigHasStroke = false;
+
+function setupSignaturePad(){
+  const canvas = document.getElementById('sigCanvas');
+  const wrap = document.getElementById('sigWrap');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = wrap.clientWidth * dpr;
+  canvas.height = 140 * dpr;
+  sigCtx = canvas.getContext('2d');
+  sigCtx.scale(dpr, dpr);
+  sigCtx.strokeStyle = '#1B2430';
+  sigCtx.lineWidth = 2.2;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+  sigHasStroke = false;
+  document.getElementById('sigPlaceholder').style.display = 'flex';
+
+  function pos(e){
+    const rect = canvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+  }
+  function start(e){
+    e.preventDefault();
+    sigDrawing = true; sigHasStroke = true;
+    document.getElementById('sigPlaceholder').style.display = 'none';
+    const p = pos(e);
+    sigCtx.beginPath();
+    sigCtx.moveTo(p.x, p.y);
+  }
+  function move(e){
+    if(!sigDrawing) return;
+    e.preventDefault();
+    const p = pos(e);
+    sigCtx.lineTo(p.x, p.y);
+    sigCtx.stroke();
+  }
+  function end(){ sigDrawing = false; }
+
+  canvas.onpointerdown = start;
+  canvas.onpointermove = move;
+  canvas.onpointerup = end;
+  canvas.onpointerleave = end;
+
+  document.getElementById('sigClear').onclick = () => {
+    sigCtx.clearRect(0, 0, canvas.width, canvas.height);
+    sigHasStroke = false;
+    document.getElementById('sigPlaceholder').style.display = 'flex';
+  };
+}
+
+document.getElementById('confirmClaim').addEventListener('click', async ()=>{
+  const claimant = document.getElementById('inputClaimant').value.trim();
+  if(!claimant){ showToast('Indique le nom de la personne'); return; }
+  const c = colisList.find(x=>x.id===claimTargetId);
+  if(!c) return;
+  c.statut = 'recupere';
+  c.recuperePar = claimant;
+  c.dateRecupere = new Date().toISOString();
+  if(sigHasStroke){
+    c.signature = document.getElementById('sigCanvas').toDataURL('image/png');
+  }
+  overlayClaim.classList.remove('open');
+  render();
+  await saveData();
+  showToast('Remise enregistrée');
+});
+
+// --- Scanner code-barre ---
+const scannerOverlay = document.getElementById('scannerOverlay');
+const scannerVideo = document.getElementById('scannerVideo');
+const scannerHint = document.getElementById('scannerHint');
+let scanStream = null;
+let scanLoopActive = false;
+
+document.getElementById('btnScan').addEventListener('click', startScanner);
+document.getElementById('scannerClose').addEventListener('click', stopScanner);
+
+async function startScanner(){
+  if(!('BarcodeDetector' in window)){
+    showToast("Scanner non dispo sur cet appareil — saisis le code à la main");
+    return;
+  }
+  try{
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    scannerVideo.srcObject = scanStream;
+    scannerOverlay.classList.add('open');
+    scanLoopActive = true;
+    const detector = new BarcodeDetector();
+    const loop = async () => {
+      if(!scanLoopActive) return;
+      try{
+        const codes = await detector.detect(scannerVideo);
+        if(codes && codes.length > 0){
+          document.getElementById('inputCode').value = codes[0].rawValue;
+          stopScanner();
+          showToast('Code scanné');
+          return;
+        }
+      }catch(e){ /* frame pas prête, on continue */ }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+  }catch(e){
+    showToast("Impossible d'accéder à la caméra — saisis le code à la main");
+  }
+}
+
+function stopScanner(){
+  scanLoopActive = false;
+  scannerOverlay.classList.remove('open');
+  if(scanStream){
+    scanStream.getTracks().forEach(t=>t.stop());
+    scanStream = null;
+  }
+}
+
+loadData();
+</script>
+</body>
+</html>
