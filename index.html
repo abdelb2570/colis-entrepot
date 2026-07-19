@@ -304,8 +304,22 @@
 
 <div class="toast" id="toast"></div>
 
-<script>
-const STORAGE_KEY = 'colis-list';
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAFcM69Kes4aJH6dTW_qnoEaa7LW0FAX_Q",
+  authDomain: "colis-entrepot.firebaseapp.com",
+  projectId: "colis-entrepot",
+  storageBucket: "colis-entrepot.firebasestorage.app",
+  messagingSenderId: "369663357889",
+  appId: "1:369663357889:web:903f2f346900b4dfe4b540"
+};
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const colisDocRef = doc(db, "entrepot", "colis-list");
+
 let colisList = [];
 let currentTab = 'attente';
 let searchTerm = '';
@@ -327,20 +341,16 @@ function fmtDate(iso){
   return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + ' à ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
 }
 
-async function loadData(){
-  try{
-    const res = await window.storage.get(STORAGE_KEY, true);
-    colisList = res ? JSON.parse(res.value) : [];
-  }catch(e){
-    colisList = [];
-  }
+onSnapshot(colisDocRef, (snap) => {
+  colisList = snap.exists() ? (snap.data().items || []) : [];
   render();
-}
+}, (err) => {
+  mainEl.innerHTML = `<div class="empty"><div class="big">⚠️</div><p><b>Connexion à la base impossible</b></p><p>${escapeHtml(err.message)}</p></div>`;
+});
 
 async function saveData(){
   try{
-    const res = await window.storage.set(STORAGE_KEY, JSON.stringify(colisList), true);
-    if(!res){ showToast("Erreur d'enregistrement — réessaie"); }
+    await setDoc(colisDocRef, { items: colisList });
   }catch(e){
     showToast("Erreur d'enregistrement — réessaie");
   }
@@ -608,8 +618,6 @@ function stopScanner(){
     scanStream = null;
   }
 }
-
-loadData();
 </script>
 </body>
 </html>
