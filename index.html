@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Colis — Suivi entrepôt</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0B2A4A">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -63,6 +67,16 @@
   .tab.active{background:var(--card); color:var(--ink); border-color:var(--line); box-shadow:inset 0 2px 0 var(--blue);}
   .tab .count{font-family:'IBM Plex Mono',monospace; font-weight:500; opacity:.6; margin-left:4px;}
 
+  .toolbar{
+    display:flex; justify-content:flex-end; padding:10px 16px 0; max-width:640px; margin:0 auto;
+  }
+  .toolbar-btn{
+    display:flex; align-items:center; gap:6px; border:1px solid var(--line); background:var(--card);
+    border-radius:5px; padding:7px 12px; font-size:12.5px; font-weight:700; color:var(--navy);
+    cursor:pointer;
+  }
+  .toolbar-btn:active{background:#EEF1F4;}
+
   main{padding:12px 16px 100px; max-width:640px; margin:0 auto;}
 
   .empty{
@@ -97,9 +111,17 @@
   }
 
   .ticket-bottom{
-    display:flex; align-items:center; justify-content:space-between;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
     padding:10px 16px 14px;
   }
+  .ticket-actions{display:flex; align-items:center; gap:6px;}
+  .icon-btn{
+    border:1px solid var(--line); background:#FAFBFC; border-radius:5px;
+    width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; flex:none;
+  }
+  .icon-btn:active{background:#EEF1F4;}
+  .icon-btn.danger:active{background:#FDEDED;}
   .badge{
     font-size:10.5px; font-weight:700; padding:4px 9px; border-radius:3px;
     display:inline-flex; align-items:center; gap:5px; text-transform:uppercase; letter-spacing:.04em;
@@ -232,6 +254,13 @@
   <div class="tab" data-tab="historique">Historique <span class="count" id="countHisto"></span></div>
 </div>
 
+<div class="toolbar">
+  <button class="toolbar-btn" id="btnExport" type="button">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 19h16"/></svg>
+    Exporter en CSV
+  </button>
+</div>
+
 <main id="main">
   <div class="load">Chargement…</div>
 </main>
@@ -240,7 +269,7 @@
 
 <div class="sheet-overlay" id="addOverlay">
   <div class="sheet">
-    <h2>Nouveau colis</h2>
+    <h2 id="addSheetTitle">Nouveau colis</h2>
     <div class="field">
       <label>Nom du destinataire</label>
       <input id="inputNom" type="text" placeholder="Ex : Karim B.">
@@ -306,7 +335,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { getFirestore, doc, onSnapshot, setDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAFcM69Kes4aJH6dTW_qnoEaa7LW0FAX_Q",
@@ -319,11 +348,17 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getFirestore(fbApp);
 const colisDocRef = doc(db, "entrepot", "colis-list");
+enableIndexedDbPersistence(db).catch(()=>{ /* déjà activé dans un autre onglet, ou navigateur non supporté — pas grave */ });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
 
 let colisList = [];
 let currentTab = 'attente';
 let searchTerm = '';
 let claimTargetId = null;
+let editTargetId = null;
 
 const mainEl = document.getElementById('main');
 const overlayAdd = document.getElementById('addOverlay');
@@ -407,7 +442,15 @@ function render(){
         <div class="perf"></div>
         <div class="ticket-bottom">
           <span class="badge attente">En attente</span>
-          <button class="btn btn-primary" onclick="openClaim('${c.id}')">Remettre</button>
+          <div class="ticket-actions">
+            <button class="icon-btn" title="Modifier" onclick="openEdit('${c.id}')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1B2430" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <button class="icon-btn danger" title="Supprimer" onclick="deleteColis('${c.id}')">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D93B3B" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0l-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6h16z"/></svg>
+            </button>
+            <button class="btn btn-primary" onclick="openClaim('${c.id}')">Remettre</button>
+          </div>
         </div>
       </div>`;
     } else {
@@ -420,6 +463,9 @@ function render(){
             ${c.description ? `<div class="ticket-desc">${escapeHtml(c.description)}</div>` : ''}
             ${c.trackingCode ? `<div class="ticket-code">${escapeHtml(c.trackingCode)}</div>` : ''}
           </div>
+          <button class="icon-btn danger" title="Supprimer" onclick="deleteColis('${c.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#D93B3B" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0l-1 14a2 2 0 01-2 2H7a2 2 0 01-2-2L4 6h16z"/></svg>
+          </button>
         </div>
         <div class="perf"></div>
         <div class="ticket-bottom" style="display:block;">
@@ -456,6 +502,9 @@ document.getElementById('searchInput').addEventListener('input', (e)=>{
 });
 
 document.getElementById('fabAdd').addEventListener('click', ()=>{
+  editTargetId = null;
+  document.getElementById('addSheetTitle').textContent = 'Nouveau colis';
+  document.getElementById('confirmAdd').textContent = 'Ajouter le colis';
   document.getElementById('inputNom').value = '';
   document.getElementById('inputDesc').value = '';
   document.getElementById('inputRecept').value = '';
@@ -466,9 +515,47 @@ document.getElementById('fabAdd').addEventListener('click', ()=>{
 document.getElementById('cancelAdd').addEventListener('click', ()=>overlayAdd.classList.remove('open'));
 overlayAdd.addEventListener('click', (e)=>{ if(e.target===overlayAdd) overlayAdd.classList.remove('open'); });
 
+window.openEdit = function(id){
+  const c = colisList.find(x=>x.id===id);
+  if(!c) return;
+  editTargetId = id;
+  document.getElementById('addSheetTitle').textContent = 'Modifier le colis';
+  document.getElementById('confirmAdd').textContent = 'Enregistrer les modifications';
+  document.getElementById('inputNom').value = c.destinataire || '';
+  document.getElementById('inputDesc').value = c.description || '';
+  document.getElementById('inputRecept').value = c.recuPar || '';
+  document.getElementById('inputCode').value = c.trackingCode || '';
+  overlayAdd.classList.add('open');
+  setTimeout(()=>document.getElementById('inputNom').focus(), 200);
+};
+
+window.deleteColis = function(id){
+  const c = colisList.find(x=>x.id===id);
+  if(!c) return;
+  if(!confirm(`Supprimer le colis de ${c.destinataire} (ticket #${String(c.num).padStart(3,'0')}) ? Cette action est définitive.`)) return;
+  colisList = colisList.filter(x=>x.id!==id);
+  render();
+  saveData();
+  showToast('Colis supprimé');
+};
+
 document.getElementById('confirmAdd').addEventListener('click', async ()=>{
   const nom = document.getElementById('inputNom').value.trim();
   if(!nom){ showToast('Indique le nom du destinataire'); return; }
+  if(editTargetId){
+    const c = colisList.find(x=>x.id===editTargetId);
+    if(c){
+      c.destinataire = nom;
+      c.description = document.getElementById('inputDesc').value.trim();
+      c.recuPar = document.getElementById('inputRecept').value.trim();
+      c.trackingCode = document.getElementById('inputCode').value.trim();
+    }
+    overlayAdd.classList.remove('open');
+    render();
+    await saveData();
+    showToast('Colis modifié');
+    return;
+  }
   const newColis = {
     id: 'c' + Date.now() + Math.random().toString(36).slice(2,7),
     num: nextTicketNumber(),
@@ -488,6 +575,25 @@ document.getElementById('confirmAdd').addEventListener('click', async ()=>{
   showToast('Colis enregistré — ticket #' + String(newColis.num).padStart(3,'0'));
 });
 
+document.getElementById('btnExport').addEventListener('click', () => {
+  const rows = [['Ticket','Destinataire','Description','Code de suivi','Reçu par','Date arrivée','Statut','Pris par','Date remise']];
+  colisList.forEach(c => {
+    rows.push([
+      String(c.num).padStart(3,'0'), c.destinataire||'', c.description||'', c.trackingCode||'',
+      c.recuPar||'', fmtDate(c.dateRecu), c.statut==='attente' ? 'En attente' : 'Remis',
+      c.recuperePar||'', c.dateRecupere ? fmtDate(c.dateRecupere) : ''
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'colis-entrepot-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
 window.openClaim = function(id){
   claimTargetId = id;
   const c = colisList.find(x=>x.id===id);
@@ -499,7 +605,6 @@ window.openClaim = function(id){
 document.getElementById('cancelClaim').addEventListener('click', ()=>overlayClaim.classList.remove('open'));
 overlayClaim.addEventListener('click', (e)=>{ if(e.target===overlayClaim) overlayClaim.classList.remove('open'); });
 
-// --- Pad de signature ---
 let sigCtx = null;
 let sigDrawing = false;
 let sigHasStroke = false;
@@ -570,7 +675,6 @@ document.getElementById('confirmClaim').addEventListener('click', async ()=>{
   showToast('Remise enregistrée');
 });
 
-// --- Scanner code-barre ---
 const scannerOverlay = document.getElementById('scannerOverlay');
 const scannerVideo = document.getElementById('scannerVideo');
 const scannerHint = document.getElementById('scannerHint');
