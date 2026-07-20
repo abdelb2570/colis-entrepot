@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Colis — Suivi entrepôt</title>
+<title>Amphenol FCI — Enregistrement de colis</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0B2A4A">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -242,7 +242,7 @@
 <body>
 
 <header>
-  <h1>Colis <span class="tag">ENTREPÔT</span></h1>
+  <h1>Amphenol FCI <span class="tag">COLIS</span></h1>
   <div class="search">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
     <input id="searchInput" type="text" placeholder="Chercher un nom…">
@@ -575,6 +575,7 @@ document.getElementById('confirmAdd').addEventListener('click', async ()=>{
   showToast('Colis enregistré — ticket #' + String(newColis.num).padStart(3,'0'));
 });
 
+// --- Export CSV ---
 document.getElementById('btnExport').addEventListener('click', () => {
   const rows = [['Ticket','Destinataire','Description','Code de suivi','Reçu par','Date arrivée','Statut','Pris par','Date remise']];
   colisList.forEach(c => {
@@ -605,6 +606,7 @@ window.openClaim = function(id){
 document.getElementById('cancelClaim').addEventListener('click', ()=>overlayClaim.classList.remove('open'));
 overlayClaim.addEventListener('click', (e)=>{ if(e.target===overlayClaim) overlayClaim.classList.remove('open'); });
 
+// --- Pad de signature ---
 let sigCtx = null;
 let sigDrawing = false;
 let sigHasStroke = false;
@@ -675,6 +677,7 @@ document.getElementById('confirmClaim').addEventListener('click', async ()=>{
   showToast('Remise enregistrée');
 });
 
+// --- Scanner code-barre ---
 const scannerOverlay = document.getElementById('scannerOverlay');
 const scannerVideo = document.getElementById('scannerVideo');
 const scannerHint = document.getElementById('scannerHint');
