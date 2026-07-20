@@ -1,4 +1,4 @@
-const CACHE_NAME = 'colis-app-v1';
+const CACHE_NAME = 'colis-app-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -28,15 +28,12 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('firestore.googleapis.com') || event.request.url.includes('firebaseapp.com')) return;
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((res) => {
-          const resClone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((res) => {
+        const resClone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
